@@ -1,0 +1,15 @@
+# secrets: never commit
+.env
+.env.*
+!.env.example
+secrets.env
+# local only
+.venv/
+__pycache__/
+.DS_Store
+logs/
+debug_clips/
+_backup_before_audio_fixes/
+*.mov
+*.mp4
+*.wav

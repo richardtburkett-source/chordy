@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chordy · music buddy</title>
+<meta name="description" content="Hum it, play it or share it: Chordy listens and tells you the key, tempo and chords, then helps you play it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --stage: #15302F;      /* practice room at night: deep teal */
+  --stage-2: #1D3B3A;
+  --stage-3: #2A4B49;
+  --paper: #F3ECE0;      /* sheet music */
+  --paper-2: #E7DDCC;
+  --ink: #1E2423;
+  --ink-2: #5B5F5A;
+  --brass: #E2B04F;      /* the one bright accent: brass */
+  --rosewood: #A8462F;   /* fretboard red-brown, used sparingly */
+  --on-stage: #E9EFEC;
+  --on-stage-2: #A9BDB8;
+  --serif: "Young Serif", Georgia, serif;
+  --sans: "Figtree", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--stage); color: var(--on-stage); font: 400 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; width: 100%; }
+
+.btn { appearance: none; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 700; cursor: pointer; background: var(--brass); color: #2A2008; line-height: 1.2; }
+.btn:hover { background: #EDC067; }
+.btn.ghost { background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 1.5px var(--stage-3); font-weight: 600; }
+.btn.ghost:hover { background: var(--stage-2); }
+.btn.ghost[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--brass); color: var(--brass); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- start ---------- */
+#start { min-height: 100vh; display: grid; align-items: center; padding: 48px 0; }
+.start-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 56px; align-items: center; }
+.wordmark { font-family: var(--serif); font-size: 22px; color: var(--brass); margin: 0 0 32px; }
+h1.hero { font-family: var(--serif); font-weight: 400; font-size: clamp(52px, 7.5vw, 104px); line-height: .95; letter-spacing: -0.02em; margin: 0 0 24px; }
+.lede { font-size: 19px; color: var(--on-stage-2); max-width: 32em; margin: 0 0 32px; }
+.start-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.start-row input { background: var(--stage-2); border: 1.5px solid var(--stage-3); border-radius: 999px; padding: 11px 18px; width: 220px; }
+.start-row input::placeholder { color: var(--on-stage-2); }
+.start-note { color: var(--on-stage-2); font-size: 14px; margin-top: 14px; }
+.error { color: #F29A84; font-weight: 500; }
+.can-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.can-list li { background: var(--stage-2); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.can-list svg { width: 30px; height: 30px; }
+.can-list b { display: block; font-weight: 600; }
+.can-list span { color: var(--on-stage-2); font-size: 15px; }
+
+/* ---------- session ---------- */
+#session { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { display: flex; align-items: center; gap: 16px; padding-top: 16px; padding-bottom: 16px; }
+.topbar .wordmark { margin: 0; }
+.topbar .spacer { flex: 1; }
+.clock { color: var(--on-stage-2); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; padding-bottom: 24px; }
+
+.screen { position: relative; border-radius: 16px; overflow: hidden; background: #0F2423; aspect-ratio: 16 / 10; }
+.screen video#avatar { width: 100%; height: 100%; object-fit: cover; display: block; }
+.placeholder { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--on-stage-2); padding: 24px; }
+.placeholder .mono { font-family: var(--serif); font-size: 64px; color: var(--brass); }
+.nameplate { position: absolute; left: 16px; bottom: 16px; background: rgba(21,48,47,.88); border-radius: 999px; padding: 6px 14px 6px 10px; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--on-stage-2); }
+.dot.speaking { background: var(--brass); }
+.selfview { position: absolute; right: 16px; top: 16px; width: 22%; aspect-ratio: 4/3; border-radius: 10px; object-fit: cover; background: #000; transform: scaleX(-1); box-shadow: 0 0 0 2px rgba(233,239,236,.25); }
+.listen-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(15,36,35,.94); }
+.ring { position: relative; width: 168px; height: 168px; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .count { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.ring .count b { font-family: var(--serif); font-size: 52px; font-weight: 400; display: block; line-height: 1; }
+.ring .count span { font-size: 14px; color: var(--on-stage-2); }
+.looking { position: absolute; top: 16px; left: 16px; background: var(--brass); color: #2A2008; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+
+.controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+.controls .hint { color: var(--on-stage-2); font-size: 14px; }
+.share { margin-top: 18px; background: var(--stage-2); border-radius: 14px; padding: 16px; }
+.share h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; color: var(--on-stage-2); }
+.share-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.share-row input[type=url] { flex: 1; min-width: 200px; background: var(--stage); border: 1.5px solid var(--stage-3); border-radius: 999px; padding: 10px 16px; }
+.share-row input[type=url]::placeholder { color: var(--on-stage-2); }
+.file-label { position: relative; overflow: hidden; }
+.file-label input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.player { margin-top: 12px; width: 100%; }
+
+/* ---------- cards: sheet music on the stand ---------- */
+.cards { display: grid; gap: 14px; align-content: start; }
+.cards .empty { border: 1.5px dashed var(--stage-3); border-radius: 14px; padding: 28px; color: var(--on-stage-2); text-align: center; }
+.card { background: var(--paper); color: var(--ink); border-radius: 14px; padding: 18px 20px; animation: drop .28s ease-out; }
+@keyframes drop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.card h3 { font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1.2; margin: 0 0 4px; }
+.card .src { color: var(--ink-2); font-size: 13.5px; margin: 0 0 12px; }
+.facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; margin: 0 0 12px; }
+.facts div { font-size: 13.5px; color: var(--ink-2); }
+.facts b { display: block; font-size: 22px; color: var(--ink); font-weight: 700; line-height: 1.2; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.chip { border: 0; background: var(--paper-2); color: var(--ink); border-radius: 8px; padding: 4px 10px; font-weight: 600; font-size: 15px; cursor: pointer; }
+.chip:hover { background: var(--brass); }
+.chip.note { cursor: default; font-weight: 500; }
+.chip.note:hover { background: var(--paper-2); }
+.label { font-size: 13.5px; color: var(--ink-2); margin: 8px 0 2px; }
+.song { display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center; }
+.song img { width: 88px; height: 88px; border-radius: 8px; object-fit: cover; background: var(--paper-2); }
+.song a { color: var(--rosewood); font-weight: 600; }
+.chord-figs { display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center; }
+.chord-figs svg { width: 100%; height: auto; display: block; }
+.card ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.card .muted { color: var(--ink-2); font-size: 14px; }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--paper); color: var(--ink); padding: 12px 18px; border-radius: 10px; max-width: min(640px, calc(100vw - 32px)); z-index: 10; font-weight: 500; }
+
+@media (max-width: 980px) {
+  .start-grid, .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .wrap { padding: 0 16px; }
+  .chord-figs { grid-template-columns: 110px 1fr; }
+  .ring { width: 120px; height: 120px; }
+  #placeholderText { display: none; }
+  .ring .count b { font-size: 38px; }
+}
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+</style>
+</head>
+<body>
+
+<section id="start">
+  <div class="wrap start-grid">
+    <div>
+      <p class="wordmark">Chordy</p>
+      <h1 class="hero">Play me something.</h1>
+      <p class="lede">Hum it, whistle it, strum it, or share a song. Chordy listens, tells you the key, tempo and chords, and helps you play it yourself.</p>
+      <form class="start-row" id="startForm">
+        <input id="name" name="name" placeholder="Your first name (optional)" autocomplete="given-name" aria-label="Your first name (optional)">
+        <button class="btn" id="startBtn" type="submit">Start a session</button>
+      </form>
+      <p class="start-note">Uses your microphone. Camera is optional, for when you want Chordy to watch you play.</p>
+      <p class="error" id="startError" role="alert" hidden></p>
+    </div>
+    <ul class="can-list" aria-label="What Chordy can do">
+      <li><svg viewBox="0 0 30 30" aria-hidden="true"><path d="M6 12v6M11 8v14M16 5v20M21 10v10M26 13v4" stroke="#E2B04F" stroke-width="2.4" stroke-linecap="round"/></svg><div><b>Listens to anything</b><span>Humming, whistling, an instrument, or a song on your speakers.</span></div></li>
+      <li><svg viewBox="0 0 30 30" aria-hidden="true"><rect x="4" y="6" width="22" height="18" rx="3" fill="none" stroke="#E2B04F" stroke-width="2"/><path d="M8 12h14M8 17h9" stroke="#E2B04F" stroke-width="2" stroke-linecap="round"/></svg><div><b>Shows you cards</b><span>Key, tempo, chords, notes, and the song when it can identify it.</span></div></li>
+      <li><svg viewBox="0 0 30 30" aria-hidden="true"><path d="M9 5v20M15 5v20M21 5v20M5 10h20M5 15h20M5 20h20" stroke="#E2B04F" stroke-width="1.6"/><circle cx="15" cy="12.5" r="2.4" fill="#E2B04F"/><circle cx="21" cy="17.5" r="2.4" fill="#E2B04F"/></svg><div><b>Teaches the chords</b><span>Guitar shapes and piano keys for every chord it names.</span></div></li>
+      <li><svg viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="8" width="18" height="14" rx="3" fill="none" stroke="#E2B04F" stroke-width="2"/><path d="M21 13l6-3v10l-6-3z" fill="#E2B04F"/></svg><div><b>Watches you play</b><span>Turn on your camera and ask how your hand position looks.</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<section id="session" hidden>
+  <div class="wrap topbar">
+    <p class="wordmark">Chordy</p>
+    <div class="spacer"></div>
+    <div class="clock" id="clock">0:00</div>
+    <button class="btn ghost" id="endBtn" type="button">End session</button>
+  </div>
+  <div class="wrap grid">
+    <div>
+      <div class="screen">
+        <div class="placeholder" id="placeholder"><div><div class="mono">C</div><div id="placeholderText">Chordy is joining…</div></div></div>
+        <video id="avatar" autoplay playsinline hidden></video>
+        <video id="self" class="selfview" autoplay playsinline muted hidden></video>
+        <div class="nameplate"><span class="dot" id="dot"></span>Chordy <span id="state" style="font-weight:400;color:var(--on-stage-2)"></span></div>
+        <div class="listen-overlay" id="listenOverlay" hidden>
+          <div class="ring" role="status" aria-live="polite">
+            <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(233,239,236,.18)" stroke-width="6"/><circle id="ringArc" cx="50" cy="50" r="44" fill="none" stroke="#E2B04F" stroke-width="6" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg>
+            <div class="count"><div><b id="countNum">10</b><span>listening</span></div></div>
+          </div>
+        </div>
+        <div class="looking" id="looking" hidden>Looking…</div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="listenBtn" type="button">Listen to me play</button>
+        <button class="btn ghost" id="musicBtn" type="button" aria-pressed="false" title="Turns off the voice filters so music comes through clearly">Music mic</button>
+        <button class="btn ghost" id="camBtn" type="button" aria-pressed="false">Camera</button>
+        <span class="hint" id="micHint">Or just ask: "Chordy, what key is this?"</span>
+      </div>
+      <div class="share">
+        <h2>Share a song</h2>
+        <form class="share-row" id="linkForm">
+          <input type="url" id="url" placeholder="Paste a YouTube, Spotify or SoundCloud link, or an MP3 link" aria-label="Song link">
+          <button class="btn ghost" type="submit">Share link</button>
+          <label class="btn ghost file-label">Upload a song<input type="file" id="file" accept="audio/*"></label>
+        </form>
+        <audio class="player" id="player" controls hidden></audio>
+      </div>
+    </div>
+    <aside class="cards" id="cards" aria-label="Cards from Chordy" aria-live="polite">
+      <div class="empty" id="empty">Play something, hum a tune, or share a song. Cards about the music show up here.</div>
+    </aside>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="module">
+const DEMO = new URLSearchParams(location.search).has("demo");
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const S = { room: null, Track: null, started: 0, clock: null, musicMode: false, autoMusic: false, cam: false, listenTimer: null };
+
+function toast(m, ms = 6000) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), ms); }
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+// ---------------------------------------------------------------- music theory for the cards
+const SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const IDX = Object.fromEntries([...SHARP.map((n, i) => [n, i]), ...FLAT.map((n, i) => [n, i])]);
+const QUAL = { "": [0, 4, 7], m: [0, 3, 7], "7": [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10], sus2: [0, 2, 7], sus4: [0, 5, 7], dim: [0, 3, 6], aug: [0, 4, 8], "6": [0, 4, 7, 9], m6: [0, 3, 7, 9] };
+function parseChord(name) {
+  const m = /^([A-G])([#b]?)(maj7|m7|m6|m|7|sus2|sus4|dim|aug|6)?$/.exec(String(name).trim());
+  if (!m) return null;
+  const root = m[1] + m[2], q = m[3] || "", r = IDX[root];
+  const names = root.includes("#") || "GDAEB".includes(root) ? SHARP : root.includes("b") || root === "F" ? FLAT : FLAT;
+  return { name: root + q, root: r, pcs: QUAL[q].map((i) => (r + i) % 12), notes: QUAL[q].map((i) => names[(r + i) % 12]) };
+}
+// Guitar shapes, low E to high e. -1 = don't play the string.
+const SHAPES = {
+  C: [-1,3,2,0,1,0], "C#": [-1,4,6,6,6,4], Db: [-1,4,6,6,6,4], D: [-1,-1,0,2,3,2], Eb: [-1,6,8,8,8,6], "D#": [-1,6,8,8,8,6],
+  E: [0,2,2,1,0,0], F: [1,3,3,2,1,1], "F#": [2,4,4,3,2,2], Gb: [2,4,4,3,2,2], G: [3,2,0,0,0,3], Ab: [4,6,6,5,4,4], "G#": [4,6,6,5,4,4],
+  A: [-1,0,2,2,2,0], Bb: [-1,1,3,3,3,1], "A#": [-1,1,3,3,3,1], B: [-1,2,4,4,4,2],
+  Cm: [-1,3,5,5,4,3], "C#m": [-1,4,6,6,5,4], Dbm: [-1,4,6,6,5,4], Dm: [-1,-1,0,2,3,1], Ebm: [-1,6,8,8,7,6], "D#m": [-1,6,8,8,7,6],
+  Em: [0,2,2,0,0,0], Fm: [1,3,3,1,1,1], "F#m": [2,4,4,2,2,2], Gbm: [2,4,4,2,2,2], Gm: [3,5,5,3,3,3], Abm: [4,6,6,4,4,4], "G#m": [4,6,6,4,4,4],
+  Am: [-1,0,2,2,1,0], Bbm: [-1,1,3,3,2,1], "A#m": [-1,1,3,3,2,1], Bm: [-1,2,4,4,3,2],
+  A7: [-1,0,2,0,2,0], B7: [-1,2,1,2,0,2], C7: [-1,3,2,3,1,0], D7: [-1,-1,0,2,1,2], E7: [0,2,0,1,0,0], F7: [1,3,1,2,1,1], G7: [3,2,0,0,0,1],
+  Am7: [-1,0,2,0,1,0], Bm7: [-1,2,0,2,0,2], Dm7: [-1,-1,0,2,1,1], Em7: [0,2,0,0,0,0], "F#m7": [2,4,2,2,2,2],
+  Cmaj7: [-1,3,2,0,0,0], Dmaj7: [-1,-1,0,2,2,2], Emaj7: [0,2,1,1,0,0], Fmaj7: [-1,-1,3,2,1,0], Gmaj7: [3,2,0,0,0,2], Amaj7: [-1,0,2,1,2,0],
+  Dsus2: [-1,-1,0,2,3,0], Dsus4: [-1,-1,0,2,3,3], Asus2: [-1,0,2,2,0,0], Asus4: [-1,0,2,2,3,0], Esus4: [0,2,2,2,0,0],
+};
+function guitarSVG(name) {
+  const f = SHAPES[name];
+  if (!f) return `<p class="muted">No guitar diagram for ${esc(name)} yet. The piano shows its notes.</p>`;
+  const fretted = f.filter((x) => x > 0), lo = Math.min(...fretted, 99), hi = Math.max(...fretted, 0);
+  const base = hi > 4 ? lo : 1, x0 = 18, y0 = 26, dx = 18, dy = 22;
+  let g = `<svg viewBox="0 0 126 150" role="img" aria-label="Guitar shape for ${esc(name)}">`;
+  g += base === 1 ? `<rect x="${x0}" y="${y0 - 3}" width="${dx * 5}" height="4" fill="#1E2423"/>` : `<text x="${x0 - 6}" y="${y0 + dy / 2 + 4}" font-size="11" text-anchor="end" fill="#5B5F5A">${base}</text>`;
+  for (let i = 0; i <= 5; i++) g += `<line x1="${x0 + i * dx}" y1="${y0}" x2="${x0 + i * dx}" y2="${y0 + dy * 5}" stroke="#1E2423" stroke-width="1.2"/>`;
+  for (let j = 0; j <= 5; j++) g += `<line x1="${x0}" y1="${y0 + j * dy}" x2="${x0 + dx * 5}" y2="${y0 + j * dy}" stroke="#1E2423" stroke-width="${j === 0 ? 1.2 : 1}"/>`;
+  f.forEach((v, s) => {
+    const x = x0 + s * dx;
+    if (v < 0) g += `<text x="${x}" y="${y0 - 9}" font-size="12" text-anchor="middle" fill="#5B5F5A">×</text>`;
+    else if (v === 0) g += `<circle cx="${x}" cy="${y0 - 13}" r="4" fill="none" stroke="#1E2423" stroke-width="1.3"/>`;
+    else g += `<circle cx="${x}" cy="${y0 + (v - base + 0.5) * dy}" r="7" fill="#A8462F"/>`;
+  });
+  return g + `</svg>`;
+}
+function pianoSVG(chord) {
+  const whites = [0, 2, 4, 5, 7, 9, 11], blackPos = { 1: 0, 3: 1, 6: 3, 8: 4, 10: 5 };
+  const on = new Set(); let semi = chord.root;
+  chord.pcs.forEach((pc, i) => { if (i > 0) { while (semi % 12 !== pc) semi++; } on.add(semi); });
+  const W = 18, H = 70, keys = 14;
+  let g = `<svg viewBox="0 0 ${W * keys + 2} ${H + 2}" role="img" aria-label="Piano keys for ${esc(chord.name)}: ${esc(chord.notes.join(" "))}">`;
+  for (let o = 0; o < 2; o++) whites.forEach((pc, i) => {
+    const s = o * 12 + pc, x = 1 + (o * 7 + i) * W;
+    g += `<rect x="${x}" y="1" width="${W}" height="${H}" fill="${on.has(s) ? "#E2B04F" : "#FFFDF8"}" stroke="#1E2423" stroke-width="1"/>`;
+  });
+  for (let o = 0; o < 2; o++) for (const [pc, wi] of Object.entries(blackPos)) {
+    const s = o * 12 + Number(pc), x = 1 + (o * 7 + wi + 1) * W - 5.5;
+    g += `<rect x="${x}" y="1" width="11" height="${H * 0.62}" rx="1.5" fill="${on.has(s) ? "#A8462F" : "#1E2423"}"/>`;
+  }
+  return g + `</svg>`;
+}
+
+// ---------------------------------------------------------------- cards
+function addCard(c) {
+  $("empty").hidden = true;
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = renderCard(c);
+  $("cards").prepend(el);
+  el.querySelectorAll("[data-chord]").forEach((b) => b.addEventListener("click", () => {
+    const ch = parseChord(b.dataset.chord); if (ch) addCard({ kind: "chord", name: ch.name });
+  }));
+  while ($("cards").querySelectorAll(".card").length > 12) $("cards").lastElementChild.remove();
+}
+function renderCard(c) {
+  switch (c.kind) {
+    case "analysis": {
+      if (!c.heard) return `<h3>I couldn't hear much</h3><p class="src">${esc(c.source)} · ${esc(c.seconds)} s</p><p class="muted">It was too quiet or too short. Get a bit closer to the mic, or switch on Music mic, and try again.</p>`;
+      const chords = (c.chords || []).map((x) => `<button class="chip" type="button" data-chord="${esc(x)}" title="Show how to play ${esc(x)}">${esc(x)}</button>`).join("");
+      const notes = (c.notes || []).map((n) => `<span class="chip note">${esc(n)}</span>`).join("");
+      return `<h3>What I heard</h3><p class="src">${esc(c.source)} · ${esc(c.seconds)} s · ${esc((c.sound || "").split(" (")[0])}</p>
+        <div class="facts"><div><b>${esc(c.key || "–")}</b>key, ${esc(c.key_confidence || "")}</div><div><b>${c.bpm ? esc(c.bpm) + " BPM" : "–"}</b>${esc(c.tempo_confidence || "tempo")}</div></div>
+        ${chords ? `<p class="label">Chords, in order (tap one to see how to play it)</p><div class="chips">${chords}</div>` : ""}
+        ${notes ? `<p class="label">Notes${c.range ? `, range ${esc(c.range)}` : ""}</p><div class="chips">${notes}</div>` : ""}
+        <p class="muted">An estimate from the audio, not a transcription.</p>`;
+    }
+    case "song":
+      return `<div class="song">${c.artwork ? `<img src="${esc(c.artwork)}" alt="">` : "<img alt=''>"}<div><h3>${esc(c.title)}</h3><p class="src" style="margin:0">${esc(c.artist)}${c.album ? ` · ${esc(c.album)}` : ""}${c.year ? ` · ${esc(c.year)}` : ""}</p>${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener">Song page and lyrics</a>` : ""}<p class="muted" style="margin:4px 0 0">${esc(c.source || "")}</p></div></div>`;
+    case "link":
+      return `<div class="song">${c.artwork ? `<img src="${esc(c.artwork)}" alt="">` : "<img alt=''>"}<div><h3>${esc(c.title)}</h3><p class="src" style="margin:0">${esc(c.artist || "")} · ${esc(c.source || "")}</p><p class="muted" style="margin:4px 0 0">From the link's title only: Chordy can't hear a link. Play it on your speakers and press Listen.</p></div></div>`;
+    case "chord": {
+      const ch = parseChord(c.name);
+      if (!ch) return `<h3>${esc(c.name)}</h3><p class="muted">Not a chord I can draw.</p>`;
+      return `<h3>${esc(ch.name)}</h3><p class="src">Notes: ${esc(ch.notes.join(" · "))}</p><div class="chord-figs">${guitarSVG(ch.name)}${pianoSVG(ch)}</div>`;
+    }
+    case "info":
+      return `<h3>${esc(c.title)}</h3><ul>${(c.lines || []).map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+  }
+  return "";
+}
+
+// ---------------------------------------------------------------- messages from Chordy
+function onMessage(m) {
+  switch (m.type) {
+    case "card": addCard(m.card); break;
+    case "listening": startListening(m.seconds || 10); break;
+    case "listening_done": stopListening(); break;
+    case "looking": $("looking").hidden = false; setTimeout(() => ($("looking").hidden = true), 2500); break;
+    case "error": toast(m.message, 10000); break;
+  }
+}
+async function startListening(secs) {
+  $("listenOverlay").hidden = false;
+  if (!S.musicMode) { S.autoMusic = true; await setMusicMode(true); }
+  send({ type: "mic_ready" });   // tells Chordy the voice filters are off, so it can start recording
+  const t0 = Date.now(), arc = $("ringArc");
+  clearInterval(S.listenTimer);
+  S.listenTimer = setInterval(() => {
+    const left = Math.max(0, secs - (Date.now() - t0) / 1000);
+    $("countNum").textContent = Math.ceil(left);
+    arc.style.strokeDashoffset = String(276.5 * (1 - left / secs));
+    if (left <= 0) clearInterval(S.listenTimer);
+  }, 100);
+}
+function stopListening() {
+  clearInterval(S.listenTimer); $("listenOverlay").hidden = true;
+  if (S.autoMusic) { S.autoMusic = false; setMusicMode(false); }
+}
+
+// ---------------------------------------------------------------- live session
+async function start(name) {
+  if (DEMO) return runDemo();
+  const res = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, code: new URLSearchParams(location.search).get("code") || "" }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `The server returned ${res.status}. Is \`uv run server.py\` running?`);
+  const { Room, RoomEvent, Track, createLocalAudioTrack } = await import("https://cdn.jsdelivr.net/npm/livekit-client@2.22.3/dist/livekit-client.esm.mjs");
+  S.Track = Track;
+  const room = new Room({ adaptiveStream: true, dynacast: true });
+  S.room = room;
+  room.on(RoomEvent.TrackSubscribed, (track) => {
+    if (track.kind === Track.Kind.Video) { track.attach($("avatar")); $("avatar").hidden = false; $("placeholder").hidden = true; }
+    else if (track.kind === Track.Kind.Audio) { const el = track.attach(); el.hidden = true; document.body.appendChild(el); }
+  });
+  room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((el) => el.id !== "avatar" && el.remove()));
+  room.on(RoomEvent.DataReceived, (payload, p, kind, topic) => {
+    if (topic !== "chordy") return;
+    try { onMessage(JSON.parse(new TextDecoder().decode(payload))); } catch (e) { console.warn(e); }
+  });
+  room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+    const talking = speakers.some((s) => s !== room.localParticipant);
+    $("dot").className = "dot" + (talking ? " speaking" : "");
+  });
+  room.on(RoomEvent.Disconnected, () => toast("The session ended. Refresh to start again.", 12000));
+  document.addEventListener("click", () => room.startAudio(), { once: true });
+  await room.connect(data.url, data.token);
+  await room.startAudio();
+  try { await room.localParticipant.setMicrophoneEnabled(true); }
+  catch { throw new Error("Microphone blocked. Click the microphone icon in the address bar, allow it, then start again."); }
+  // A second, unfiltered copy of the mic just for Chordy's ears. The normal mic keeps its voice filters for
+  // conversation, so nothing has to be restarted (restarting the track left it silent).
+  try {
+    const speechPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const deviceId = speechPub?.track?.mediaStreamTrack?.getSettings?.().deviceId;
+    const raw = await createLocalAudioTrack({ echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1, ...(deviceId ? { deviceId: { exact: deviceId } } : {}) });
+    await room.localParticipant.publishTrack(raw, { name: "music-mic", source: Track.Source.Unknown, dtx: false, red: false });
+    S.musicTrack = raw;
+  } catch (e) { console.warn("couldn't publish the music mic; Chordy will use the voice mic", e); }
+  setTimeout(() => { if (room.remoteParticipants.size === 0) toast("Chordy hasn't joined yet. Check that `uv run agent.py dev` is running.", 15000); }, 20000);
+}
+function send(msg) { S.room?.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(msg)), { reliable: true, topic: "chordy" }).catch(() => {}); }
+
+async function setMusicMode(on) {
+  S.musicMode = on;
+  $("musicBtn").setAttribute("aria-pressed", String(on));
+  $("micHint").textContent = on ? "Music mic: voice filters off, so instruments come through clearly." : 'Or just ask: "Chordy, what key is this?"';
+  // No track restart any more: Chordy listens on the separate unfiltered "music-mic" track (see start()).
+}
+async function toggleCamera() {
+  if (DEMO) return toast("Camera is off in demo mode.");
+  S.cam = !S.cam;
+  try {
+    await S.room.localParticipant.setCameraEnabled(S.cam);
+    const pub = S.room.localParticipant.getTrackPublication(S.Track.Source.Camera);
+    if (S.cam && pub?.track) { pub.track.attach($("self")); $("self").hidden = false; } else $("self").hidden = true;
+  } catch { S.cam = false; toast("Camera blocked. Allow it in the address bar to let Chordy see you play."); }
+  $("camBtn").setAttribute("aria-pressed", String(S.cam));
+}
+
+// ---------------------------------------------------------------- sharing a file: decode in the browser, send 22 kHz mono WAV
+async function shareFile(file) {
+  $("player").src = URL.createObjectURL(file); $("player").hidden = false;
+  if (DEMO) return demoFile(file.name);
+  toast(`Sending "${file.name}" to Chordy…`, 4000);
+  const ctx = new AudioContext();
+  const buf = await ctx.decodeAudioData(await file.arrayBuffer()).catch(() => null);
+  ctx.close();
+  if (!buf) return toast("Chordy can't read that file. Try an MP3, M4A or WAV.");
+  const offset = buf.duration > 75 ? 30 : 0, seg = Math.min(45, buf.duration - offset), sr = 22050;
+  const off = new OfflineAudioContext(1, Math.ceil(seg * sr), sr);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0, offset, seg);
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const wav = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(wav);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + pcm.length * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((x, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x)) * 32767, true));
+  send({ type: "file_info", name: file.name, total: Math.round(buf.duration), start: Math.round(offset), length: Math.round(seg) });
+  await S.room.localParticipant.sendFile(new File([wav], file.name.replace(/\.[^.]+$/, "") + ".wav", { type: "audio/wav" }), { topic: "music-file", mimeType: "audio/wav" });
+}
+
+// ---------------------------------------------------------------- wiring
+$("startForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("startError").hidden = true; $("startBtn").disabled = true; $("startBtn").textContent = "Connecting…";
+  $("start").hidden = true; $("session").hidden = false;
+  S.started = Date.now(); S.clock = setInterval(() => ($("clock").textContent = fmt((Date.now() - S.started) / 1000)), 1000);
+  try { await start($("name").value.trim()); }
+  catch (err) {
+    clearInterval(S.clock); $("session").hidden = true; $("start").hidden = false;
+    $("startError").textContent = err.message || String(err); $("startError").hidden = false;
+    $("startBtn").disabled = false; $("startBtn").textContent = "Start a session";
+    S.room?.disconnect(); S.room = null;
+  }
+});
+$("endBtn").addEventListener("click", () => { S.room?.disconnect(); location.reload(); });
+$("listenBtn").addEventListener("click", () => (DEMO ? demoListen() : send({ type: "listen" })));
+$("musicBtn").addEventListener("click", () => { S.autoMusic = false; setMusicMode(!S.musicMode); });
+$("camBtn").addEventListener("click", toggleCamera);
+$("linkForm").addEventListener("submit", (e) => {
+  e.preventDefault(); const url = $("url").value.trim(); if (!url) return;
+  if (DEMO) demoLink(url); else send({ type: "link", url });
+  $("url").value = ""; toast("Sent the link to Chordy.", 3000);
+});
+$("file").addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) shareFile(f).catch((err) => toast(`Couldn't send the file: ${err.message}`)); e.target.value = ""; });
+
+// ---------------------------------------------------------------- demo mode (?demo): no keys, no mic
+function runDemo() {
+  $("placeholderText").textContent = "Demo mode: scripted cards, no avatar or microphone.";
+  setTimeout(() => addCard({ kind: "info", title: "Try these", lines: ["Press Listen and hum a tune", "Share a song link or upload an MP3", "Tap a chord to see how to play it"] }), 600);
+}
+function demoListen() {
+  onMessage({ type: "listening", seconds: 5 });
+  setTimeout(() => {
+    onMessage({ type: "listening_done" });
+    addCard({ kind: "analysis", heard: true, source: "microphone", seconds: 5, key: "C major", key_confidence: "clear", bpm: 104, tempo_confidence: "rough estimate", notes: ["C4", "C4", "C4", "D4", "E4", "E4", "D4", "E4", "F4", "G4"], range: "C4 to G4", sound: "single melody (hummed, whistled or one instrument line)" });
+  }, 5200);
+}
+function demoFile(name) {
+  addCard({ kind: "analysis", heard: true, source: `shared file: ${name}`, seconds: 45, key: "G major", key_confidence: "clear", bpm: 99, tempo_confidence: "steady beat", chords: ["G", "D", "Em", "C", "G", "D", "Em", "C"], sound: "full music (chords and/or drums)" });
+  setTimeout(() => addCard({ kind: "chord", name: "Em" }), 900);
+  setTimeout(() => addCard({ kind: "info", title: "Practice: the G to D to Em to C loop", lines: ["Strum each chord four times, slowly", "Keep your third finger anchored between G and D", "Speed up only when the changes are clean"] }), 1600);
+}
+function demoLink(url) { addCard({ kind: "link", title: "A song from your link", artist: "Artist name", source: "YouTube", link: url }); }
+</script>
+</body>
+</html>

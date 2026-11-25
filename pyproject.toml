@@ -1,0 +1,16 @@
+[project]
+name = "chordy"
+version = "0.1.0"
+description = "Chordy: a music buddy on a Synthesia interactive avatar that listens, explains and teaches"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit-agents[synthesia]==1.8.5",
+    "livekit-api",
+    "python-dotenv",
+    "librosa>=0.10",
+    "soundfile",
+    "numpy",
+    "aiohttp",
+    "numba==0.62.1",
+    "llvmlite==0.45.1",
+]
